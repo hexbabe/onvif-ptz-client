@@ -1,0 +1,13 @@
+{
+  "module_name": "onvif-ptz-client",
+  "namespace": "seanorg",
+  "language": "go",
+  "resource_type": "component",
+  "resource_subtype": "generic",
+  "model_name": "client",
+  "enable_cloud_build": false,
+  "initialize_git": false,
+  "generator_version": "0.1.0",
+  "generated_on": "2025-04-14T15:35:33.648402Z",
+  "module_readme_link": ""
+}

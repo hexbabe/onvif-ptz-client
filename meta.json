@@ -1,0 +1,28 @@
+{
+  "$schema": "https://dl.viam.dev/module.schema.json",
+  "module_id": "seanorg:onvif-ptz-client",
+  "visibility": "private",
+  "url": "https://github.com/hexbabe/onvif-ptz-client",
+  "description": "Sends PTZ commands to ONVIF IP cameras",
+  "models": [
+    {
+      "api": "rdk:component:generic",
+      "model": "seanorg:onvif-ptz-client:client",
+      "short_description": "Sends PTZ commands to ONVIF IP cameras",
+      "markdown_link": "README.md#model-seanorgonvif-ptz-clientclient"
+    }
+  ],
+  "applications": null,
+  "markdown_link": "",
+  "entrypoint": "bin/onvif-ptz-client",
+  "first_run": "",
+  "build": {
+    "build": "make module.tar.gz",
+    "setup": "make setup",
+    "path": "bin/module.tar.gz",
+    "arch": [
+      "linux/amd64",
+      "linux/arm64"
+    ]
+  }
+}
