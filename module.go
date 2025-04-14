@@ -229,7 +229,6 @@ func (s *onvifPtzClientClient) handleContinuousMove(cmd map[string]interface{}) 
 	panSpeed := getOptionalFloat64(cmd, "pan_speed", 0.0)
 	tiltSpeed := getOptionalFloat64(cmd, "tilt_speed", 0.0)
 	zoomSpeed := getOptionalFloat64(cmd, "zoom_speed", 0.0)
-	// duration := getOptionalDuration(cmd, "duration", 0) // Duration handling is complex for DoCommand, skip for now
 
 	if panSpeed < -1.0 || panSpeed > 1.0 || tiltSpeed < -1.0 || tiltSpeed > 1.0 || zoomSpeed < -1.0 || zoomSpeed > 1.0 {
 		return nil, fmt.Errorf("speed values (pan_speed, tilt_speed, zoom_speed) must be between -1.0 and 1.0")
@@ -257,8 +256,6 @@ func (s *onvifPtzClientClient) handleContinuousMove(cmd map[string]interface{}) 
 		return nil, fmt.Errorf("failed to call ContinuousMove: %w", err)
 	}
 
-	// Note: Continuous move doesn't really 'finish' until stopped.
-	// We can't easily implement the duration+stop logic from the CLI within a single DoCommand.
 	s.logger.Infof("ContinuousMove command sent successfully for profile %s. Send 'stop' command to halt.", profileToken)
 	return map[string]interface{}{"success": true}, nil
 }
