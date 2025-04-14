@@ -54,13 +54,13 @@ func (cfg *Config) Validate(path string) ([]string, error) {
 	return nil, nil
 }
 
-type onvifPtzClientClient struct {
+type onvifPtzClient struct {
 	resource.AlwaysRebuild
 
 	name   resource.Name
 	logger logging.Logger
 	cfg    *Config
-	dev    *onvif.Device // ONVIF device instance
+	dev    *onvif.Device
 
 	cancelCtx  context.Context
 	cancelFunc func()
@@ -78,7 +78,7 @@ func newOnvifPtzClientClient(ctx context.Context, deps resource.Dependencies, ra
 func NewClient(ctx context.Context, deps resource.Dependencies, name resource.Name, conf *Config, logger logging.Logger) (resource.Resource, error) {
 	cancelCtx, cancelFunc := context.WithCancel(context.Background())
 
-	logger.Infof("Attempting to connect to ONVIF device at %s", conf.Address)
+	logger.Debugf("Attempting to connect to ONVIF device at %s", conf.Address)
 	dev, err := onvif.NewDevice(onvif.DeviceParams{
 		Xaddr:    conf.Address,
 		Username: conf.Username,
@@ -90,7 +90,7 @@ func NewClient(ctx context.Context, deps resource.Dependencies, name resource.Na
 	}
 	logger.Info("Successfully connected to ONVIF device.")
 
-	s := &onvifPtzClientClient{
+	s := &onvifPtzClient{
 		name:       name,
 		logger:     logger,
 		cfg:        conf,
@@ -105,16 +105,16 @@ func NewClient(ctx context.Context, deps resource.Dependencies, name resource.Na
 	return s, nil
 }
 
-func (s *onvifPtzClientClient) Name() resource.Name {
+func (s *onvifPtzClient) Name() resource.Name {
 	return s.name
 }
 
-func (s *onvifPtzClientClient) NewClientFromConn(ctx context.Context, conn rpc.ClientConn, remoteName string, name resource.Name, logger logging.Logger) (resource.Resource, error) {
+func (s *onvifPtzClient) NewClientFromConn(ctx context.Context, conn rpc.ClientConn, remoteName string, name resource.Name, logger logging.Logger) (resource.Resource, error) {
 	panic("not implemented")
 }
 
 // handleGetProfiles retrieves available media profiles from the camera and implements the get-profiles command logic.
-func (s *onvifPtzClientClient) handleGetProfiles() (map[string]interface{}, error) {
+func (s *onvifPtzClient) handleGetProfiles() (map[string]interface{}, error) {
 	s.logger.Debug("Fetching media profiles...")
 	req := media.GetProfiles{}
 	res, err := s.dev.CallMethod(req)
@@ -144,7 +144,7 @@ func (s *onvifPtzClientClient) handleGetProfiles() (map[string]interface{}, erro
 }
 
 // handleGetStatus implements the get-status command logic
-func (s *onvifPtzClientClient) handleGetStatus() (map[string]interface{}, error) {
+func (s *onvifPtzClient) handleGetStatus() (map[string]interface{}, error) {
 	if s.cfg.ProfileToken == "" {
 		return nil, errors.New("profile_token is not configured for this component")
 	}
@@ -173,7 +173,6 @@ func (s *onvifPtzClientClient) handleGetStatus() (map[string]interface{}, error)
 
 	ptzStatus := statusEnvelope.Body.GetResponse.PTZStatus
 
-	// Return status as a map matching the struct fields for easy JSON serialization
 	return map[string]interface{}{
 		"position": map[string]interface{}{
 			"pan_tilt": map[string]interface{}{
@@ -195,14 +194,14 @@ func (s *onvifPtzClientClient) handleGetStatus() (map[string]interface{}, error)
 }
 
 // handleStop implements the stop command logic
-func (s *onvifPtzClientClient) handleStop(cmd map[string]interface{}) (map[string]interface{}, error) {
+func (s *onvifPtzClient) handleStop(cmd map[string]interface{}) (map[string]interface{}, error) {
 	if s.cfg.ProfileToken == "" {
 		return nil, errors.New("profile_token is not configured for this component")
 	}
 	profileToken := onvifxsd.ReferenceToken(s.cfg.ProfileToken)
 
-	stopPanTilt := getOptionalBool(cmd, "pan_tilt", true) // Default to true
-	stopZoom := getOptionalBool(cmd, "zoom", true)        // Default to true
+	stopPanTilt := getOptionalBool(cmd, "pan_tilt", true)
+	stopZoom := getOptionalBool(cmd, "zoom", true)
 
 	req := ptz.Stop{
 		ProfileToken: profileToken,
@@ -220,7 +219,7 @@ func (s *onvifPtzClientClient) handleStop(cmd map[string]interface{}) (map[strin
 }
 
 // handleContinuousMove implements the continuous-move command logic
-func (s *onvifPtzClientClient) handleContinuousMove(cmd map[string]interface{}) (map[string]interface{}, error) {
+func (s *onvifPtzClient) handleContinuousMove(cmd map[string]interface{}) (map[string]interface{}, error) {
 	if s.cfg.ProfileToken == "" {
 		return nil, errors.New("profile_token is not configured for this component")
 	}
@@ -240,14 +239,13 @@ func (s *onvifPtzClientClient) handleContinuousMove(cmd map[string]interface{}) 
 			PanTilt: onvifxsd.Vector2D{
 				X:     panSpeed,
 				Y:     tiltSpeed,
-				Space: ContinuousPanTiltVelocityGenericSpace, // Specify space
+				Space: ContinuousPanTiltVelocityGenericSpace,
 			},
 			Zoom: onvifxsd.Vector1D{
 				X:     zoomSpeed,
-				Space: ContinuousZoomVelocityGenericSpace, // Specify space
+				Space: ContinuousZoomVelocityGenericSpace,
 			},
 		},
-		// Timeout: // Timeout handling might be complex here
 	}
 
 	s.logger.Debugf("Sending ContinuousMove (PanSpeed: %.2f, TiltSpeed: %.2f, ZoomSpeed: %.2f) for profile %s...", panSpeed, tiltSpeed, zoomSpeed, profileToken)
@@ -261,7 +259,7 @@ func (s *onvifPtzClientClient) handleContinuousMove(cmd map[string]interface{}) 
 }
 
 // handleRelativeMove implements the relative-move command logic
-func (s *onvifPtzClientClient) handleRelativeMove(cmd map[string]interface{}) (map[string]interface{}, error) {
+func (s *onvifPtzClient) handleRelativeMove(cmd map[string]interface{}) (map[string]interface{}, error) {
 	if s.cfg.ProfileToken == "" {
 		return nil, errors.New("profile_token is not configured for this component")
 	}
@@ -275,9 +273,9 @@ func (s *onvifPtzClientClient) handleRelativeMove(cmd map[string]interface{}) (m
 	speedX := getOptionalFloat64(cmd, "speed_pan", 0.5)
 	speedY := getOptionalFloat64(cmd, "speed_tilt", 0.5)
 	speedZ := getOptionalFloat64(cmd, "speed_zoom", 0.5)
-	useSpeed := getOptionalBool(cmd, "use_speed", false) // Check if speed args were provided
+	useSpeed := getOptionalBool(cmd, "use_speed", false)
 
-	// Input validation based on degrees flag
+	// Input validation based on degrees input
 	if useDegrees {
 		if panRelative < -180.0 || panRelative > 180.0 {
 			return nil, errors.New("relative pan must be between -180.0 and 180.0 when using degrees")
@@ -344,7 +342,7 @@ func (s *onvifPtzClientClient) handleRelativeMove(cmd map[string]interface{}) (m
 }
 
 // handleAbsoluteMove implements the absolute-move command logic
-func (s *onvifPtzClientClient) handleAbsoluteMove(cmd map[string]interface{}) (map[string]interface{}, error) {
+func (s *onvifPtzClient) handleAbsoluteMove(cmd map[string]interface{}) (map[string]interface{}, error) {
 	if s.cfg.ProfileToken == "" {
 		return nil, errors.New("profile_token is not configured for this component")
 	}
@@ -371,9 +369,9 @@ func (s *onvifPtzClientClient) handleAbsoluteMove(cmd map[string]interface{}) (m
 	speedX := getOptionalFloat64(cmd, "speed_pan", 0.5)
 	speedY := getOptionalFloat64(cmd, "speed_tilt", 0.5)
 	speedZ := getOptionalFloat64(cmd, "speed_zoom", 0.5)
-	useSpeed := getOptionalBool(cmd, "use_speed", false) // Check if speed args were provided
+	useSpeed := getOptionalBool(cmd, "use_speed", false)
 
-	// Input validation based on degrees flag
+	// Input validation based on degrees input
 	if useDegrees {
 		if panAbsolute < -180.0 || panAbsolute > 180.0 {
 			return nil, errors.New("absolute pan must be between -180.0 and 180.0 when using degrees")
@@ -440,7 +438,7 @@ func (s *onvifPtzClientClient) handleAbsoluteMove(cmd map[string]interface{}) (m
 }
 
 // DoCommand maps incoming commands to the appropriate ONVIF PTZ action
-func (s *onvifPtzClientClient) DoCommand(ctx context.Context, cmd map[string]interface{}) (map[string]interface{}, error) {
+func (s *onvifPtzClient) DoCommand(ctx context.Context, cmd map[string]interface{}) (map[string]interface{}, error) {
 	command, err := getString(cmd, "command")
 	if err != nil {
 		return nil, errors.New("invalid command request: 'command' key missing or not a string")
@@ -466,7 +464,7 @@ func (s *onvifPtzClientClient) DoCommand(ctx context.Context, cmd map[string]int
 	}
 }
 
-func (s *onvifPtzClientClient) Close(context.Context) error {
+func (s *onvifPtzClient) Close(context.Context) error {
 	s.cancelFunc()
 	return nil
 }
